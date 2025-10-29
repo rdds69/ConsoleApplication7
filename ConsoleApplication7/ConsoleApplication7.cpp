@@ -299,13 +299,13 @@ int main() {
 
     objl::Loader loader1;
     std::cout << "=== ЗАГРУЗКА МОДЕЛИ ===" << std::endl;
-    if (!loader1.LoadFile("obj/GTR.obj")) {
+    if (!loader1.LoadFile("obj/rv_lamp_post_4.obj")) {
         std::cout << "Не удалось загрузить модель!" << std::endl;
         return -1;
     }
     objl::Loader loader2;
     std::cout << "=== ЗАГРУЗКА МОДЕЛИ ===" << std::endl;
-    if (!loader2.LoadFile("obj/GTR.obj")) {
+    if (!loader2.LoadFile("obj/rv_lamp_post_4.obj")) {
         std::cout << "Не удалось загрузить модель!" << std::endl;
         return -1;
     }
@@ -340,22 +340,28 @@ int main() {
 
     // Переменные для управления
     float objectPosX = 0.0f;
-    float objectPosY = 0.0f;
+    float objectPosY = -0.26f;
     float objectPosZ = 0.0f;
-    float objectScale = 0.1f;
+    float objectScale = 0.2f;
     float objectRotate = 0.0f;
 
-    float object1PosX = -2.0f;
-    float object1PosY = 0.0f;
+    float object1PosX = -1.25f;
+    float object1PosY = -0.45f;
     float object1PosZ = 0.0f;
-    float object1Scale = 0.1f;
+    float object1Scale = 0.07f;
     float object1Rotate = 0.0f;
 
-    float object2PosX = 2.0f;
-    float object2PosY = 0.0f;
+    float object2PosX = 1.25f;
+    float object2PosY = -0.45f;
     float object2PosZ = 0.0f;
-    float object2Scale = 0.1f;
-    float object2Rotate = 0.0f;
+    float object2Scale = 0.07f;
+    float object2Rotate = 180.0f;
+
+    // Переменные для камеры
+    glm::vec3 cameraPos = glm::vec3(3.0f, 2.0f, 3.0f);
+    glm::vec3 cameraFront = glm::vec3(-0.6f, -0.4f, -0.6f);
+    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    float cameraSpeed = 0.001f;
     // Основной цикл рендеринга
     while (!glfwWindowShouldClose(window)) {
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -379,9 +385,9 @@ int main() {
         modelMat2 = glm::rotate(modelMat2, glm::radians(object2Rotate), glm::vec3(0.0f, 1.0f, 0.0f));
 
         glm::mat4 view = glm::lookAt(
-            glm::vec3(3.0f, 2.0f, 3.0f),
-            glm::vec3(0.0f, 0.5f, 0.0f),
-            glm::vec3(0.0f, 1.0f, 0.0f)
+            cameraPos,                    // позиция камеры
+            cameraPos + cameraFront,      // направление взгляда
+            cameraUp                      // вектор "вверх"
         );
 
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1920.0f / 1080.0f, 0.1f, 100.0f);
@@ -414,7 +420,6 @@ int main() {
         glUniform3f(glGetUniformLocation(shaderProgram1, "lightPos"), 2.0f, 5.0f, 2.0f);
         glUniform3f(glGetUniformLocation(shaderProgram1, "viewPos"), 3.0f, 2.0f, 3.0f);
         glUniform3f(glGetUniformLocation(shaderProgram1, "lightColor"), 1.0f, 1.0f, 1.0f);
-
         // Рендерим ВТОРОЙ объект
         for (int i = 0; i < meshes1.size(); i++) {
             SetMaterial(shaderProgram1, meshes1[i]);
@@ -458,7 +463,19 @@ int main() {
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
             objectPosX -= 0.0005f;
             objectRotate -= 90.0f;
-
+        if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+            cameraPos += cameraSpeed * cameraFront;  // приближение
+        }
+        if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+            cameraPos -= cameraSpeed * cameraFront;  // отдаление
+        }
+        // Дополнительное управление камерой (опционально)
+        if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+            cameraPos += cameraSpeed * glm::normalize(glm::cross(cameraFront, cameraUp));  // вправо
+        }
+        if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+            cameraPos -= cameraSpeed * glm::normalize(glm::cross(cameraFront, cameraUp));  // влево
+        }
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
