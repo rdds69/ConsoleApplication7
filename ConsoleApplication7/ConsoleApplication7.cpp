@@ -1,13 +1,20 @@
 ﻿#include <iostream>
 #include <vector>
+#include <map>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include "OBJ_Loader.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
-// Шейдеры
+// Загружаем stb_image.h если нет - https://github.com/nothings/stb
+
+std::map<std::string, unsigned int> loadedTextures;
+
+// Шейдеры с поддержкой текстур
 const char* vertexShaderSource = R"(
 #version 330 core
 layout (location = 0) in vec3 aPos;
@@ -38,16 +45,27 @@ in vec3 FragPos;
 in vec3 Normal;
 in vec2 TexCoord;
 
-uniform vec3 material_Kd;  // Diffuse color from MTL
-uniform vec3 material_Ka;  // Ambient color from MTL
-uniform vec3 material_Ks;  // Specular color from MTL
-uniform float material_Ns; // Specular exponent from MTL
+uniform vec3 material_Kd;
+uniform vec3 material_Ka;
+uniform vec3 material_Ks;
+uniform float material_Ns;
 
 uniform vec3 lightPos;
 uniform vec3 viewPos;
 uniform vec3 lightColor;
 
+uniform sampler2D diffuseTexture;
+uniform bool useTexture;
+
 void main() {
+    // Базовый цвет - из текстуры или из материала
+    vec3 baseColor;
+    if (useTexture) {
+        baseColor = texture(diffuseTexture, TexCoord).rgb;
+    } else {
+        baseColor = material_Kd;
+    }
+    
     // Ambient
     float ambientStrength = 0.1;
     vec3 ambient = material_Ka * lightColor * ambientStrength;
@@ -56,7 +74,7 @@ void main() {
     vec3 norm = normalize(Normal);
     vec3 lightDir = normalize(lightPos - FragPos);
     float diff = max(dot(norm, lightDir), 0.0);
-    vec3 diffuse = material_Kd * diff * lightColor;
+    vec3 diffuse = baseColor * diff * lightColor;
     
     // Specular
     float specularStrength = 0.5;
@@ -70,6 +88,49 @@ void main() {
 }
 )";
 
+// Функция загрузки текстуры
+unsigned int LoadTexture(const std::string& filename) {
+    if (loadedTextures.find(filename) != loadedTextures.end()) {
+        return loadedTextures[filename];
+    }
+
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+
+    int width, height, nrComponents;
+    unsigned char* data = stbi_load(filename.c_str(), &width, &height, &nrComponents, 0);
+
+    if (data) {
+        GLenum format;
+        if (nrComponents == 1)
+            format = GL_RED;
+        else if (nrComponents == 3)
+            format = GL_RGB;
+        else if (nrComponents == 4)
+            format = GL_RGBA;
+
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        std::cout << "Текстура загружена: " << filename << " (" << width << "x" << height << ")" << std::endl;
+    }
+    else {
+        std::cout << "1: " << filename << std::endl;
+        glDeleteTextures(1, &textureID);
+        textureID = 0;
+    }
+
+    stbi_image_free(data);
+    loadedTextures[filename] = textureID;
+    return textureID;
+}
+
 unsigned int CompileShader(unsigned int type, const char* source) {
     unsigned int shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, nullptr);
@@ -80,7 +141,7 @@ unsigned int CompileShader(unsigned int type, const char* source) {
     if (!success) {
         char infoLog[512];
         glGetShaderInfoLog(shader, 512, nullptr, infoLog);
-        std::cout << "Ошибка компиляции шейдера: " << infoLog << std::endl;
+        std::cout << "2: " << infoLog << std::endl;
     }
     return shader;
 }
@@ -100,8 +161,20 @@ unsigned int CreateShaderProgram() {
     return shaderProgram;
 }
 
-// Создание буферов для меша
-void SetupMesh(unsigned int& VAO, unsigned int& VBO, unsigned int& EBO, const objl::Mesh& mesh) {
+struct MeshData {
+    unsigned int VAO, VBO, EBO;
+    unsigned int textureID;
+    objl::Material material;
+    std::string name;
+    bool hasTexture;
+};
+
+// Создание буферов для меша с учетом текстур
+MeshData SetupMesh(const objl::Mesh& mesh) {
+    MeshData meshData;
+    meshData.material = mesh.MeshMaterial;
+    meshData.name = mesh.MeshName;
+
     std::vector<float> vertices;
 
     // Преобразуем вершины в плоский массив
@@ -116,16 +189,16 @@ void SetupMesh(unsigned int& VAO, unsigned int& VBO, unsigned int& EBO, const ob
         vertices.push_back(vertex.TextureCoordinate.Y);
     }
 
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
+    glGenVertexArrays(1, &meshData.VAO);
+    glGenBuffers(1, &meshData.VBO);
+    glGenBuffers(1, &meshData.EBO);
 
-    glBindVertexArray(VAO);
+    glBindVertexArray(meshData.VAO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, meshData.VBO);
     glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshData.EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER,
         mesh.Indices.size() * sizeof(unsigned int),
         mesh.Indices.data(),
@@ -142,11 +215,24 @@ void SetupMesh(unsigned int& VAO, unsigned int& VBO, unsigned int& EBO, const ob
     glEnableVertexAttribArray(2);
 
     glBindVertexArray(0);
+
+    // Загружаем текстуру если есть
+    meshData.hasTexture = !mesh.MeshMaterial.map_Kd.empty();
+    if (meshData.hasTexture) {
+        std::string texturePath = mesh.MeshMaterial.map_Kd;
+        meshData.textureID = LoadTexture(texturePath);
+    }
+    else {
+        meshData.textureID = 0;
+    }
+
+    return meshData;
 }
 
-// Установка материала из MTL в шейдер
-void SetMaterial(unsigned int shaderProgram, const objl::Material& material) {
-    // Используем значения из MTL, если они есть, иначе значения по умолчанию
+// Установка материала и текстуры
+void SetMaterial(unsigned int shaderProgram, const MeshData& meshData) {
+    const auto& material = meshData.material;
+
     glUniform3f(glGetUniformLocation(shaderProgram, "material_Kd"),
         material.Kd.X, material.Kd.Y, material.Kd.Z);
     glUniform3f(glGetUniformLocation(shaderProgram, "material_Ka"),
@@ -155,17 +241,27 @@ void SetMaterial(unsigned int shaderProgram, const objl::Material& material) {
         material.Ks.X, material.Ks.Y, material.Ks.Z);
     glUniform1f(glGetUniformLocation(shaderProgram, "material_Ns"),
         material.Ns > 0 ? material.Ns : 32.0f);
+
+    // Устанавливаем текстуру
+    if (meshData.hasTexture && meshData.textureID != 0) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, meshData.textureID);
+        glUniform1i(glGetUniformLocation(shaderProgram, "diffuseTexture"), 0);
+        glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 1);
+    }
+    else {
+        glUniform1i(glGetUniformLocation(shaderProgram, "useTexture"), 0);
+    }
 }
 
 int main() {
-    // Инициализация GLFW
     if (!glfwInit()) return -1;
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(1200, 800, "OBJ Loader with MTL", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(1200, 800, "OBJ Loader with Textures", nullptr, nullptr);
     if (!window) {
         glfwTerminate();
         return -1;
@@ -175,12 +271,12 @@ int main() {
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) return -1;
 
-    // ЗАГРУЗКА МОДЕЛИ С ИСПОЛЬЗОВАНИЕМ ГОТОВОГО LOADFILE
+    // Загрузка модели
     objl::Loader loader;
 
     std::cout << "=== ЗАГРУЗКА МОДЕЛИ ===" << std::endl;
-    if (!loader.LoadFile("OBJ_truck.obj")) { // Замени на свой путь
-        std::cout << "Не удалось загрузить модель!" << std::endl;
+    if (!loader.LoadFile("OBJ_truck.obj")) {
+        std::cout << "3" << std::endl;
         return -1;
     }
 
@@ -192,22 +288,16 @@ int main() {
         const auto& mesh = loader.LoadedMeshes[i];
         std::cout << "Меш " << i << ": '" << mesh.MeshName << "'"
             << " -> Материал: '" << mesh.MeshMaterial.name << "'"
-            << " (Kd: " << mesh.MeshMaterial.Kd.X << ", "
-            << mesh.MeshMaterial.Kd.Y << ", "
-            << mesh.MeshMaterial.Kd.Z << ")" << std::endl;
+            << " -> Текстура: '" << mesh.MeshMaterial.map_Kd << "'" << std::endl;
     }
 
     // Создаем шейдерную программу
     unsigned int shaderProgram = CreateShaderProgram();
 
-    // Создаем VAO для каждого меша
-    std::vector<unsigned int> VAOs, VBOs, EBOs;
+    // Создаем меши с текстурами
+    std::vector<MeshData> meshes;
     for (const auto& mesh : loader.LoadedMeshes) {
-        unsigned int VAO, VBO, EBO;
-        SetupMesh(VAO, VBO, EBO, mesh);
-        VAOs.push_back(VAO);
-        VBOs.push_back(VBO);
-        EBOs.push_back(EBO);
+        meshes.push_back(SetupMesh(mesh));
     }
 
     glEnable(GL_DEPTH_TEST);
@@ -241,16 +331,11 @@ int main() {
         glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), 3.0f, 2.0f, 3.0f);
         glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), 1.0f, 1.0f, 1.0f);
 
-        // Рендерим каждый меш с его материалом из MTL
-        for (int i = 0; i < loader.LoadedMeshes.size(); i++) {
-            const auto& mesh = loader.LoadedMeshes[i];
-
-            // Устанавливаем материал из MTL
-            SetMaterial(shaderProgram, mesh.MeshMaterial);
-
-            // Рендерим меш
-            glBindVertexArray(VAOs[i]);
-            glDrawElements(GL_TRIANGLES, mesh.Indices.size(), GL_UNSIGNED_INT, 0);
+        // Рендерим каждый меш
+        for (int i = 0; i < meshes.size(); i++) {
+            SetMaterial(shaderProgram, meshes[i]);
+            glBindVertexArray(meshes[i].VAO);
+            glDrawElements(GL_TRIANGLES, loader.LoadedMeshes[i].Indices.size(), GL_UNSIGNED_INT, 0);
         }
 
         glfwSwapBuffers(window);
@@ -258,10 +343,13 @@ int main() {
     }
 
     // Очистка
-    for (int i = 0; i < VAOs.size(); i++) {
-        glDeleteVertexArrays(1, &VAOs[i]);
-        glDeleteBuffers(1, &VBOs[i]);
-        glDeleteBuffers(1, &EBOs[i]);
+    for (auto& mesh : meshes) {
+        glDeleteVertexArrays(1, &mesh.VAO);
+        glDeleteBuffers(1, &mesh.VBO);
+        glDeleteBuffers(1, &mesh.EBO);
+        if (mesh.textureID != 0) {
+            glDeleteTextures(1, &mesh.textureID);
+        }
     }
     glDeleteProgram(shaderProgram);
     glfwTerminate();
