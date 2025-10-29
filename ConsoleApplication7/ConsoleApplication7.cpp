@@ -279,7 +279,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(1200, 800, "OBJ Loader with Textures", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(1920, 1080, "OBJ Loader with Textures", nullptr, nullptr);
     if (!window) {
         glfwTerminate();
         return -1;
@@ -291,112 +291,176 @@ int main() {
 
     // ЗАГРУЗКА МОДЕЛИ
     objl::Loader loader;
-
     std::cout << "=== ЗАГРУЗКА МОДЕЛИ ===" << std::endl;
     if (!loader.LoadFile("obj/GTR.obj")) {
         std::cout << "Не удалось загрузить модель!" << std::endl;
         return -1;
     }
 
-    // Отладочная информация
-    std::cout << "Загружено мешей: " << loader.LoadedMeshes.size() << std::endl;
-    std::cout << "Загружено материалов: " << loader.LoadedMaterials.size() << std::endl;
+    objl::Loader loader1;
+    std::cout << "=== ЗАГРУЗКА МОДЕЛИ ===" << std::endl;
+    if (!loader1.LoadFile("obj/GTR.obj")) {
+        std::cout << "Не удалось загрузить модель!" << std::endl;
+        return -1;
+    }
+    objl::Loader loader2;
+    std::cout << "=== ЗАГРУЗКА МОДЕЛИ ===" << std::endl;
+    if (!loader2.LoadFile("obj/GTR.obj")) {
+        std::cout << "Не удалось загрузить модель!" << std::endl;
+        return -1;
+    }
 
     for (int i = 0; i < loader.LoadedMeshes.size(); i++) {
         const auto& mesh = loader.LoadedMeshes[i];
-        std::cout << "Меш " << i << ": '" << mesh.MeshName << "'"
-            << " -> Материал: '" << mesh.MeshMaterial.name << "'"
-            << " -> Текстура: '" << mesh.MeshMaterial.map_Kd << "'" << std::endl;
     }
-
+    for (int i = 0; i < loader1.LoadedMeshes.size(); i++) {
+        const auto& mesh = loader1.LoadedMeshes[i];
+    }
+    for (int i = 0; i < loader2.LoadedMeshes.size(); i++) {
+        const auto& mesh = loader2.LoadedMeshes[i];
+    }
     // Создаем шейдерную программу
     unsigned int shaderProgram = CreateShaderProgram();
-
+    unsigned int shaderProgram1 = CreateShaderProgram();
+    unsigned int shaderProgram2 = CreateShaderProgram();
     // Создаем меши с текстурами
     std::vector<MeshData> meshes;
     for (const auto& mesh : loader.LoadedMeshes) {
         meshes.push_back(SetupMesh(mesh));
     }
-
+    std::vector<MeshData> meshes1;
+    for (const auto& mesh : loader1.LoadedMeshes) {
+        meshes1.push_back(SetupMesh(mesh));
+    }
+    std::vector<MeshData> meshes2;
+    for (const auto& mesh : loader2.LoadedMeshes) {
+        meshes2.push_back(SetupMesh(mesh));
+    }
     glEnable(GL_DEPTH_TEST);
 
     // Переменные для управления
     float objectPosX = 0.0f;
     float objectPosY = 0.0f;
     float objectPosZ = 0.0f;
-    float objectScale = 0.001f;
+    float objectScale = 0.1f;
+    float objectRotate = 0.0f;
 
+    float object1PosX = -2.0f;
+    float object1PosY = 0.0f;
+    float object1PosZ = 0.0f;
+    float object1Scale = 0.1f;
+    float object1Rotate = 0.0f;
+
+    float object2PosX = 2.0f;
+    float object2PosY = 0.0f;
+    float object2PosZ = 0.0f;
+    float object2Scale = 0.1f;
+    float object2Rotate = 0.0f;
     // Основной цикл рендеринга
     while (!glfwWindowShouldClose(window)) {
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glUseProgram(shaderProgram);
-
         // Матрицы преобразований
         float time = glfwGetTime();
         glm::mat4 modelMat = glm::mat4(1.0f);
         modelMat = glm::translate(modelMat, glm::vec3(objectPosX, objectPosY, objectPosZ));
-        modelMat = glm::scale(modelMat, glm::vec3(0.5));
-        modelMat = glm::rotate(modelMat, time * glm::radians(30.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        modelMat = glm::scale(modelMat, glm::vec3(objectScale));
+        modelMat = glm::rotate(modelMat, glm::radians(objectRotate), glm::vec3(0.0f, 1.0f, 0.0f));
+
+        glm::mat4 modelMat1 = glm::mat4(1.0f);
+        modelMat1 = glm::translate(modelMat1, glm::vec3(object1PosX, object1PosY, object1PosZ));
+        modelMat1 = glm::scale(modelMat1, glm::vec3(object1Scale));
+        modelMat1 = glm::rotate(modelMat1, glm::radians(object1Rotate), glm::vec3(0.0f, 1.0f, 0.0f));
+
+        glm::mat4 modelMat2 = glm::mat4(1.0f);
+        modelMat2 = glm::translate(modelMat2, glm::vec3(object2PosX, object2PosY, object2PosZ));
+        modelMat2 = glm::scale(modelMat2, glm::vec3(object2Scale));
+        modelMat2 = glm::rotate(modelMat2, glm::radians(object2Rotate), glm::vec3(0.0f, 1.0f, 0.0f));
 
         glm::mat4 view = glm::lookAt(
             glm::vec3(3.0f, 2.0f, 3.0f),
-            glm::vec3(0.0f, objectPosY + 0.5f, 0.0f),
+            glm::vec3(0.0f, 0.5f, 0.0f),
             glm::vec3(0.0f, 1.0f, 0.0f)
         );
 
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1200.0f / 800.0f, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1920.0f / 1080.0f, 0.1f, 100.0f);
 
+        // === ПЕРВЫЙ ОБЪЕКТ ===
+        glUseProgram(shaderProgram);
+
+        // Устанавливаем uniform'ы для ПЕРВОГО шейдера (ПОСЛЕ glUseProgram)
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(modelMat));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-
-        // Освещение
         glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), 2.0f, 5.0f, 2.0f);
         glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), 3.0f, 2.0f, 3.0f);
         glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), 1.0f, 1.0f, 1.0f);
 
-        // Рендерим каждый меш
+        // Рендерим ПЕРВЫЙ объект
         for (int i = 0; i < meshes.size(); i++) {
             SetMaterial(shaderProgram, meshes[i]);
             glBindVertexArray(meshes[i].VAO);
             glDrawElements(GL_TRIANGLES, loader.LoadedMeshes[i].Indices.size(), GL_UNSIGNED_INT, 0);
         }
 
-        // Управление
-        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-            objectPosY -= 0.05f;
-        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-            objectPosY += 0.05f;
-        if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
-            objectScale -= 0.05f;
-        if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
-            objectScale += 0.05f;
-        if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
-            objectPosY = -1.0f;
-            objectScale = 0.3f;
+        // === ВТОРОЙ ОБЪЕКТ ===
+        glUseProgram(shaderProgram1);
+
+        // Устанавливаем uniform'ы для ВТОРОГО шейдера (ПОСЛЕ glUseProgram)
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram1, "model"), 1, GL_FALSE, glm::value_ptr(modelMat1));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram1, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram1, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniform3f(glGetUniformLocation(shaderProgram1, "lightPos"), 2.0f, 5.0f, 2.0f);
+        glUniform3f(glGetUniformLocation(shaderProgram1, "viewPos"), 3.0f, 2.0f, 3.0f);
+        glUniform3f(glGetUniformLocation(shaderProgram1, "lightColor"), 1.0f, 1.0f, 1.0f);
+
+        // Рендерим ВТОРОЙ объект
+        for (int i = 0; i < meshes1.size(); i++) {
+            SetMaterial(shaderProgram1, meshes1[i]);
+            glBindVertexArray(meshes1[i].VAO);
+            glDrawElements(GL_TRIANGLES, loader1.LoadedMeshes[i].Indices.size(), GL_UNSIGNED_INT, 0);
         }
 
-        // Ограничиваем масштаб
-        if (objectScale < 0.1f) objectScale = 0.1f;
-        if (objectScale > 3.0f) objectScale = 3.0f;
+        // === ТРЕТИЙ ОБЪЕКТ ===
+        glUseProgram(shaderProgram2);
+
+        // Устанавливаем uniform'ы для ТРЕТЬЕГО шейдера (ПОСЛЕ glUseProgram)
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram2, "model"), 1, GL_FALSE, glm::value_ptr(modelMat2));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram2, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram2, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniform3f(glGetUniformLocation(shaderProgram2, "lightPos"), 2.0f, 5.0f, 2.0f);
+        glUniform3f(glGetUniformLocation(shaderProgram2, "viewPos"), 3.0f, 2.0f, 3.0f);
+        glUniform3f(glGetUniformLocation(shaderProgram2, "lightColor"), 1.0f, 1.0f, 1.0f);
+
+        // Рендерим ТРЕТИЙ объект
+        for (int i = 0; i < meshes2.size(); i++) {
+            SetMaterial(shaderProgram2, meshes2[i]);
+            glBindVertexArray(meshes2[i].VAO);
+            glDrawElements(GL_TRIANGLES, loader2.LoadedMeshes[i].Indices.size(), GL_UNSIGNED_INT, 0);
+        }
+
+        // Управление
+        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+            objectScale -= 0.001f;
+        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+            objectScale += 0.001f;
+        //управление
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            objectPosZ += 0.0005f;
+            objectRotate += 90.0f;
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            objectPosZ -= 0.0005f;
+            objectRotate -= 90.0f;  
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            objectPosX += 0.0005f;
+            objectRotate += 90.0f;
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            objectPosX -= 0.0005f;
+            objectRotate -= 90.0f;
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-
-    // Очистка
-    for (auto& mesh : meshes) {
-        glDeleteVertexArrays(1, &mesh.VAO);
-        glDeleteBuffers(1, &mesh.VBO);
-        glDeleteBuffers(1, &mesh.EBO);
-        if (mesh.textureID != 0) {
-            glDeleteTextures(1, &mesh.textureID);
-        }
-    }
-    glDeleteProgram(shaderProgram);
-    glfwTerminate();
-
     return 0;
 }

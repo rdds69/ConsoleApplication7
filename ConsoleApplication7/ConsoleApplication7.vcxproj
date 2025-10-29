@@ -125,8 +125,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ConsoleApplication7.cpp" />
+    <ClCompile Include="Model.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Model.h" />
     <ClInclude Include="OBJ_Loader.h" />
     <ClInclude Include="stb_image.h" />
   </ItemGroup>
