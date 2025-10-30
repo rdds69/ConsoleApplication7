@@ -24,6 +24,7 @@ out vec3 FragPos;
 out vec3 Normal;
 out vec2 TexCoord;
 
+
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
@@ -299,13 +300,13 @@ int main() {
 
     objl::Loader loader1;
     std::cout << "=== ЗАГРУЗКА МОДЕЛИ ===" << std::endl;
-    if (!loader1.LoadFile("obj/rv_lamp_post_4.obj")) {
+    if (!loader1.LoadFile("obj/GTR.obj")) {
         std::cout << "Не удалось загрузить модель!" << std::endl;
         return -1;
     }
     objl::Loader loader2;
     std::cout << "=== ЗАГРУЗКА МОДЕЛИ ===" << std::endl;
-    if (!loader2.LoadFile("obj/rv_lamp_post_4.obj")) {
+    if (!loader2.LoadFile("obj/table.obj")) {
         std::cout << "Не удалось загрузить модель!" << std::endl;
         return -1;
     }
@@ -340,31 +341,43 @@ int main() {
 
     // Переменные для управления
     float objectPosX = 0.0f;
-    float objectPosY = -0.26f;
+    float objectPosY = 0.67f;
     float objectPosZ = 0.0f;
     float objectScale = 0.2f;
     float objectRotate = 0.0f;
 
-    float object1PosX = -1.25f;
-    float object1PosY = -0.45f;
+    float object1PosX = 0.0f;
+    float object1PosY = 0.0f;
     float object1PosZ = 0.0f;
-    float object1Scale = 0.07f;
+    float object1Scale = 0.2f;
     float object1Rotate = 0.0f;
 
-    float object2PosX = 1.25f;
-    float object2PosY = -0.45f;
+    float object2PosX = -1.0f;
+    float object2PosY = -2.5f;
     float object2PosZ = 0.0f;
-    float object2Scale = 0.07f;
+    float object2Scale = 1.0f;
     float object2Rotate = 180.0f;
+
+    float globalLightPosX = 0.0f;
+    float globalLightPosY = 15.0f;
+    float globalLightPosZ = 0.0f;
+    float globalLightViewX = -2.0f;
+    float globalLightViewY = 15.0f;
+    float globalLightViewZ = 0.0f;
+    float globalLightColorX = 1.0f;
+    float globalLightColorY = 1.0f;
+    float globalLightColorZ = 1.0f;
 
     // Переменные для камеры
     glm::vec3 cameraPos = glm::vec3(3.0f, 2.0f, 3.0f);
     glm::vec3 cameraFront = glm::vec3(-0.6f, -0.4f, -0.6f);
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
     float cameraSpeed = 0.001f;
+    glm::vec3 carDirection = glm::vec3(0.0f, 0.0f, 1.0f); // начальное направление - вперед по Z
+    int currentDirection = 1; // 1-вперед, 2-назад, 3-влево, 4-вправо
     // Основной цикл рендеринга
     while (!glfwWindowShouldClose(window)) {
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClearColor(16.0f, 122.0f, 176.0f, 176.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Матрицы преобразований
@@ -372,7 +385,7 @@ int main() {
         glm::mat4 modelMat = glm::mat4(1.0f);
         modelMat = glm::translate(modelMat, glm::vec3(objectPosX, objectPosY, objectPosZ));
         modelMat = glm::scale(modelMat, glm::vec3(objectScale));
-        modelMat = glm::rotate(modelMat, glm::radians(objectRotate), glm::vec3(0.0f, 1.0f, 0.0f));
+        modelMat = glm::rotate(modelMat, glm::radians(objectRotate + 180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
         glm::mat4 modelMat1 = glm::mat4(1.0f);
         modelMat1 = glm::translate(modelMat1, glm::vec3(object1PosX, object1PosY, object1PosZ));
@@ -399,9 +412,9 @@ int main() {
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(modelMat));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), 2.0f, 5.0f, 2.0f);
-        glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), 3.0f, 2.0f, 3.0f);
-        glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), 1.0f, 1.0f, 1.0f);
+        glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), globalLightPosX, globalLightPosY, globalLightPosZ);
+        glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), globalLightViewX, globalLightViewY, globalLightViewZ);
+        glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), globalLightColorX, globalLightColorY, globalLightColorZ);
 
         // Рендерим ПЕРВЫЙ объект
         for (int i = 0; i < meshes.size(); i++) {
@@ -417,9 +430,9 @@ int main() {
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram1, "model"), 1, GL_FALSE, glm::value_ptr(modelMat1));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram1, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram1, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniform3f(glGetUniformLocation(shaderProgram1, "lightPos"), 2.0f, 5.0f, 2.0f);
-        glUniform3f(glGetUniformLocation(shaderProgram1, "viewPos"), 3.0f, 2.0f, 3.0f);
-        glUniform3f(glGetUniformLocation(shaderProgram1, "lightColor"), 1.0f, 1.0f, 1.0f);
+        glUniform3f(glGetUniformLocation(shaderProgram1, "lightPos"), globalLightPosX, globalLightPosY, globalLightPosZ);
+        glUniform3f(glGetUniformLocation(shaderProgram1, "viewPos"), globalLightViewX, globalLightViewY, globalLightViewZ);
+        glUniform3f(glGetUniformLocation(shaderProgram1, "lightColor"), globalLightColorX, globalLightColorY, globalLightColorZ);
         // Рендерим ВТОРОЙ объект
         for (int i = 0; i < meshes1.size(); i++) {
             SetMaterial(shaderProgram1, meshes1[i]);
@@ -434,9 +447,9 @@ int main() {
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram2, "model"), 1, GL_FALSE, glm::value_ptr(modelMat2));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram2, "view"), 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram2, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniform3f(glGetUniformLocation(shaderProgram2, "lightPos"), 2.0f, 5.0f, 2.0f);
-        glUniform3f(glGetUniformLocation(shaderProgram2, "viewPos"), 3.0f, 2.0f, 3.0f);
-        glUniform3f(glGetUniformLocation(shaderProgram2, "lightColor"), 1.0f, 1.0f, 1.0f);
+        glUniform3f(glGetUniformLocation(shaderProgram2, "lightPos"), globalLightPosX, globalLightPosY, globalLightPosZ);
+        glUniform3f(glGetUniformLocation(shaderProgram2, "viewPos"), globalLightViewX, globalLightViewY, globalLightViewZ);
+        glUniform3f(glGetUniformLocation(shaderProgram2, "lightColor"), globalLightColorX, globalLightColorY, globalLightColorZ);
 
         // Рендерим ТРЕТИЙ объект
         for (int i = 0; i < meshes2.size(); i++) {
@@ -445,24 +458,69 @@ int main() {
             glDrawElements(GL_TRIANGLES, loader2.LoadedMeshes[i].Indices.size(), GL_UNSIGNED_INT, 0);
         }
 
-        // Управление
-        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-            objectScale -= 0.001f;
-        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-            objectScale += 0.001f;
         //управление
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-            objectPosZ += 0.0005f;
-            objectRotate += 90.0f;
         if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-            objectPosZ -= 0.0005f;
-            objectRotate -= 90.0f;  
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-            objectPosX += 0.0005f;
-            objectRotate += 90.0f;
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-            objectPosX -= 0.0005f;
-            objectRotate -= 90.0f;
+        {
+            if (currentDirection != 1)
+            {
+                // Поворачиваем машинку чтобы смотреть вперед
+                float targetRotation = 0.0f; // смотреть по положительной Z
+                objectRotate = targetRotation + 180.0f;
+                carDirection = glm::vec3(0.0f, 0.0f, 1.0f);
+            }
+            currentDirection = 1;
+
+            if (objectPosZ < 1.2535)
+            {
+                objectPosZ += 0.0005f;
+            }
+        }
+        else if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        {
+            if (currentDirection != 2)
+            {
+                // Поворачиваем машинку чтобы смотреть назад
+                float targetRotation = 180.0f; // смотреть по отрицательной Z
+                objectRotate = targetRotation + 180.0f;
+                carDirection = glm::vec3(0.0f, 0.0f, -1.0f);
+            }
+            currentDirection = 2;
+            if (objectPosZ > -1.1283)
+            {
+                objectPosZ -= 0.0005f;
+            }
+        }
+        else if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        {
+            if (currentDirection != 3)
+            {
+                // Поворачиваем машинку чтобы смотреть влево
+                float targetRotation = 90.0f; // смотреть по отрицательной X
+                objectRotate = targetRotation;
+                carDirection = glm::vec3(-1.0f, 0.0f, 0.0f);
+            }
+            currentDirection = 3;
+            if (objectPosX > -3.21036f)
+            {
+                objectPosX -= 0.0005f;
+            }
+        }
+        else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        {
+            if (currentDirection != 4)
+            {
+                // Поворачиваем машинку чтобы смотреть вправо
+                float targetRotation = -90.0f; // смотреть по положительной X
+                objectRotate = targetRotation;
+                carDirection = glm::vec3(1.0f, 0.0f, 0.0f);
+            }
+            currentDirection = 4;
+            if (objectPosX < 1.41899f)
+            {
+                objectPosX += 0.0005f;
+            }
+        }
+            
         if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
             cameraPos += cameraSpeed * cameraFront;  // приближение
         }
