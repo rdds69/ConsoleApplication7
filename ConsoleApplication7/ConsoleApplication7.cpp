@@ -113,7 +113,7 @@ void main() {
     }
     
     // Ambient
-    float ambientStrength = 0.3; // Увеличим ambient чтобы тени были заметнее
+    float ambientStrength = 0.1; // Увеличим ambient чтобы тени были заметнее
     vec3 ambient = material_Ka * lightColor * ambientStrength;
     
     // Diffuse 
@@ -496,6 +496,7 @@ void SetMaterial(unsigned int shaderProgram, const MeshData& meshData) {
 }
 
 int main() {
+    
     // Инициализация GLFW
     if (!glfwInit()) return -1;
 
@@ -512,7 +513,6 @@ int main() {
     glfwMakeContextCurrent(window);
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) return -1;
-
     // Создаем shadow map
     std::cout << "Создание shadow map..." << std::endl;
     ShadowMap shadowMap = CreateShadowMap(2048, 2048);
@@ -530,7 +530,7 @@ int main() {
 
     objl::Loader loader1;
     std::cout << "=== ЗАГРУЗКА МОДЕЛИ ===" << std::endl;
-    if (!loader1.LoadFile("obj/GTR.obj")) {
+    if (!loader1.LoadFile("obj/Dodge_Charger_Low.obj")) {
         std::cout << "Не удалось загрузить модель!" << std::endl;
         return -1;
     }
@@ -569,8 +569,8 @@ int main() {
     float objectScale = 0.2f;
     float objectRotate = 0.0f;
 
-    float object1PosX = 0.0f;
-    float object1PosY = 0.0f;
+    float object1PosX = -2.0f;
+    float object1PosY = 0.45f;
     float object1PosZ = 0.0f;
     float object1Scale = 0.2f;
     float object1Rotate = 0.0f;
@@ -582,9 +582,9 @@ int main() {
     float object2Rotate = 180.0f;
 
     // ИСПРАВЛЕННЫЕ ПАРАМЕТРЫ СВЕТА - делаем свет ближе к объектам
-    float globalLightPosX = 5.0f;  // Ближе к сцене
-    float globalLightPosY = 8.0f;  // Ниже чем было
-    float globalLightPosZ = 5.0f;  // Ближе к сцене
+    float globalLightPosX = 0.5f;  // Ближе к сцене
+    float globalLightPosY = 15.0f;  // Ниже чем было
+    float globalLightPosZ = 0.0f;  // Ближе к сцене
 
     // Переменные для камеры
     glm::vec3 cameraPos = glm::vec3(3.0f, 2.0f, 3.0f);
@@ -598,6 +598,7 @@ int main() {
 
     // Основной цикл рендеринга
     while (!glfwWindowShouldClose(window)) {
+        
         // 1. РЕНДЕРИНГ В SHADOW MAP
         glViewport(0, 0, shadowMap.width, shadowMap.height);
         glBindFramebuffer(GL_FRAMEBUFFER, shadowMap.FBO);
@@ -780,7 +781,22 @@ int main() {
                 objectPosX += 0.0005f;
             }
         }
-
+        else if (glfwGetKey(window, GLFW_KEY_8) == GLFW_PRESS)
+        {
+            globalLightPosX += 0.001f;
+        }
+        else if (glfwGetKey(window, GLFW_KEY_9) == GLFW_PRESS)
+        {
+            globalLightPosX -= 0.001f;
+        }
+        else if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
+        {
+            globalLightPosZ += 0.001f;
+        }
+        else if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS)
+        {
+            globalLightPosZ -= 0.001f;
+        }
         if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
             cameraPos += cameraSpeed * cameraFront;
         }
